@@ -258,21 +258,41 @@ class DatatableQuery
                     if ($count > 2) {
                         $replaced = str_replace('.', '_', $data);
                         $parts = explode('_', $replaced);
-                        $last = array_pop($parts);
-                        $select = implode('_', $parts);
-                        $join = str_replace('_', '.', $select);
 
-                        // id root-table
-                        if (false === array_key_exists($array[0], $this->selectColumns)) {
-                            $this->setIdentifierFromAssociation($array[0]);
+                        $first = $parts[0];
+                        $join = $this->tableName.'.'.$first;
+
+                        if (false === array_key_exists($first, $this->selectColumns)) {
+                            $this->setIdentifierFromAssociation($first);
                         }
-                        $this->joins[$this->tableName . '.' . $array[0]] = $array[0];
 
-                        // id association
+                        $this->joins[$join] = $first;
+
+                        $i = 0;
+
+                        $select = null;
+
+                        $last = array_pop($parts);
+
+                        while ($i < count($parts) - 1) {
+                            $first = $parts[$i];
+                            $second = $parts[$i+1];
+
+                            if (empty($select)) {
+                                $select = $first;
+                            }
+
+                            $join = $select.'.'.$second;
+                            $select = $select.'_'.$second;
+                            $count = count($parts);
+
+                            $this->joins[$join] = $select;
+                            $i++;
+                        }
+
                         if (false === array_key_exists($select, $this->selectColumns)) {
                             $this->setIdentifierFromAssociation($parts, $select);
                         }
-                        $this->joins[$join] = $select;
 
                         $this->selectColumns[$select][] = $last;
                         $this->addSearchOrderColumn($key, $select, $last);
@@ -715,12 +735,12 @@ class DatatableQuery
     // Response
     //-------------------------------------------------
 
-    public function getResponse($buildQuery = true)
+    public function getResponse($buildQuery = true, $outputWalkers = false)
     {
         false === $buildQuery ? : $this->buildQuery();
 
         $fresults = new Paginator($this->execute(), true);
-        $fresults->setUseOutputWalkers(false);
+        $fresults->setUseOutputWalkers($outputWalkers);
         $output = array('data' => array());
 
         foreach ($fresults as $item) {
